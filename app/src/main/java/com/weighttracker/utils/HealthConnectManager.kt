@@ -1,0 +1,74 @@
+package com.weighttracker.utils
+
+import android.content.Context
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+
+class HealthConnectManager(private val context: Context) {
+    private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+
+    companion object {
+        val PERMISSIONS = setOf(
+            HealthPermission.getReadPermission(StepsRecord::class),
+            HealthPermission.getWritePermission(WeightRecord::class),
+            HealthPermission.getReadPermission(WeightRecord::class)
+        )
+    }
+
+    /**
+     * Check if Health Connect is available on this device
+     */
+    suspend fun isAvailable(): Boolean {
+        return HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+    }
+
+    /**
+     * Get steps count for today
+     */
+    suspend fun getTodaySteps(): Long {
+        return try {
+            val today = LocalDateTime.now().toLocalDate()
+            val startTime = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val endTime = Instant.now()
+
+            val request = ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
+            )
+
+            val response = healthConnectClient.readRecords(request)
+            response.records.sumOf { it.count }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
+    }
+
+    /**
+     * Get steps count for a specific date range
+     */
+    suspend fun getStepsForRange(startDate: LocalDateTime, endDate: LocalDateTime): Long {
+        return try {
+            val startTime = startDate.atZone(ZoneId.systemDefault()).toInstant()
+            val endTime = endDate.atZone(ZoneId.systemDefault()).toInstant()
+
+            val request = ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
+            )
+
+            val response = healthConnectClient.readRecords(request)
+            response.records.sumOf { it.count }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0L
+        }
+    }
+}
