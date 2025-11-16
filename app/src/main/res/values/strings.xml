@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Weight Tracker</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_charts">Charts</string>
+    <string name="nav_goals">Goals</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Home Screen -->
+    <string name="current_weight">Current Weight</string>
+    <string name="add_weight">Add Weight</string>
+    <string name="recent_entries">Recent Entries</string>
+
+    <!-- Charts Screen -->
+    <string name="weekly">Weekly</string>
+    <string name="monthly">Monthly</string>
+    <string name="yearly">Yearly</string>
+    <string name="weight_trend">Weight Trend</string>
+
+    <!-- Goals Screen -->
+    <string name="target_weight">Target Weight</string>
+    <string name="current_progress">Current Progress</string>
+    <string name="set_goal">Set Goal</string>
+    <string name="goal_completion">Goal Completion</string>
+
+    <!-- Profile Screen -->
+    <string name="height">Height</string>
+    <string name="age">Age</string>
+    <string name="bmi">BMI</string>
+    <string name="daily_steps">Daily Steps</string>
+
+    <!-- Input -->
+    <string name="weight_kg">Weight (kg)</string>
+    <string name="weight_lbs">Weight (lbs)</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+
+    <!-- Units -->
+    <string name="kg">kg</string>
+    <string name="lbs">lbs</string>
+    <string name="cm">cm</string>
+    <string name="steps">steps</string>
+
+    <!-- Health Connect -->
+    <string name="health_connect_unavailable">Health Connect is not available on this device</string>
+    <string name="grant_permissions">Grant Permissions</string>
+    <string name="health_data">Health Data</string>
+</resources>
