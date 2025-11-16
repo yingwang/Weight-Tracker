@@ -274,7 +274,10 @@ fun WeightChart(entries: List<WeightEntry>) {
     if (entries.isEmpty()) return
 
     val sortedEntries = entries.sortedBy { it.timestamp }
-    val chartEntryModel = entryModelOf(*sortedEntries.map { it.weight }.toFloatArray())
+    val chartEntries = sortedEntries.mapIndexed { index, entry ->
+        com.patrykandpatrick.vico.core.entry.FloatEntry(index.toFloat(), entry.weight)
+    }
+    val chartEntryModel = entryModelOf(chartEntries)
 
     ProvideChartStyle(chartStyle = m3ChartStyle()) {
         Chart(
