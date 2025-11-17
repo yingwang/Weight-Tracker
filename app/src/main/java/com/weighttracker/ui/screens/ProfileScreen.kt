@@ -35,6 +35,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
     var showEditDialog by remember { mutableStateOf(false) }
     var dailySteps by remember { mutableStateOf(0L) }
+    var healthConnectAvailable by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -53,10 +54,12 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
     // Health Connect permission launcher
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
         scope.launch {
-            dailySteps = healthConnectManager.getTodaySteps()
+            if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+                dailySteps = healthConnectManager.getTodaySteps()
+            }
         }
     }
 
@@ -65,10 +68,11 @@ fun ProfileScreen(viewModel: WeightViewModel) {
             permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
 
-        // Load steps from Health Connect
+        // Check Health Connect availability and load steps
         scope.launch {
             try {
-                if (healthConnectManager.isAvailable()) {
+                healthConnectAvailable = healthConnectManager.isAvailable()
+                if (healthConnectAvailable) {
                     dailySteps = healthConnectManager.getTodaySteps()
                 }
             } catch (e: Exception) {
@@ -255,13 +259,20 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         )
                     }
 
+                    if (!healthConnectAvailable) {
+                        Text(
+                            text = "Health Connect not available on this device",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
                     Button(
                         onClick = {
-                            scope.launch {
+                            if (healthConnectAvailable) {
                                 try {
-                                    val permissionIntent = PermissionController.createRequestPermissionResultContract()
-                                        .createIntent(context, HealthConnectManager.PERMISSIONS)
-                                    healthConnectPermissionLauncher.launch(permissionIntent)
+                                    healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 }
@@ -269,6 +280,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
+                        enabled = healthConnectAvailable,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -280,7 +292,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Connect Health Data")
+                        Text(if (healthConnectAvailable) "Connect Health Data" else "Health Connect Unavailable")
                     }
                 }
             }
