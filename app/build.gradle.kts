@@ -21,6 +21,12 @@ android {
         }
     }
 
+    // Increase ADB timeout for installation
+    adbOptions {
+        timeOutInMs = 10 * 60 * 1000 // 10 minutes
+        installOptions("-d", "-t")
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
