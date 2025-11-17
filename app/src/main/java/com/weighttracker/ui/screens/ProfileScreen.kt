@@ -380,18 +380,14 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         onClick = {
                             if (healthConnectAvailable) {
                                 try {
+                                    Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
                                     healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
                                 } catch (e: Exception) {
+                                    val errorMsg = "Failed to request permissions: ${e.message}"
+                                    Log.e("ProfileScreen", errorMsg, e)
                                     e.printStackTrace()
+                                    healthConnectError = errorMsg
                                 }
-
-                                Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
-                                healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
-                            } catch (e: Exception) {
-                                val errorMsg = "Failed to request permissions: ${e.message}"
-                                Log.e("ProfileScreen", errorMsg, e)
-                                e.printStackTrace()
-                                healthConnectError = errorMsg
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
