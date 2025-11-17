@@ -366,34 +366,18 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                     Button(
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
-                            try {
-                                // Use the permission contract to create the proper intent
-                                val contract = PermissionController.createRequestPermissionResultContract()
-                                val permissionIntent = contract.createIntent(context, HealthConnectManager.PERMISSIONS)
+                            scope.launch {
+                                // Check if permissions are already granted first
+                                val granted = healthConnectClient.permissionController.getGrantedPermissions()
+                                Log.d("ProfileScreen", "Currently granted permissions: $granted")
 
-                                Log.d("ProfileScreen", "Launching Health Connect permission intent")
-                                Log.d("ProfileScreen", "Intent action: ${permissionIntent.action}")
-                                Log.d("ProfileScreen", "Intent package: ${permissionIntent.`package`}")
-                                Log.d("ProfileScreen", "Intent component: ${permissionIntent.component}")
-
-                                context.startActivity(permissionIntent)
-                            } catch (e: Exception) {
-                                Log.e("ProfileScreen", "Failed to launch HC permission intent: ${e.message}", e)
-
-                                // Fallback: Open Health Connect app directly
-                                try {
-                                    val launchIntent = context.packageManager
-                                        .getLaunchIntentForPackage("com.google.android.apps.healthdata")
-                                    if (launchIntent != null) {
-                                        Log.d("ProfileScreen", "Opening Health Connect app")
-                                        context.startActivity(launchIntent)
-                                        healthConnectError = "Please grant permissions manually in Health Connect app"
-                                    } else {
-                                        healthConnectError = "Health Connect app not found"
-                                    }
-                                } catch (e2: Exception) {
-                                    Log.e("ProfileScreen", "Failed to open HC app: ${e2.message}", e2)
-                                    healthConnectError = "Unable to open Health Connect"
+                                if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+                                    Log.d("ProfileScreen", "All permissions already granted, fetching steps")
+                                    fetchSteps()
+                                } else {
+                                    Log.d("ProfileScreen", "Requesting permissions via launcher")
+                                    // Trigger permission request from UI thread via LaunchedEffect
+                                    shouldRequestPermissions = true
                                 }
                             }
                         },
