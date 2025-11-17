@@ -28,6 +28,7 @@ import com.weighttracker.data.entity.WeightEntry
 import com.weighttracker.utils.DateUtils
 import com.weighttracker.viewmodel.WeightViewModel
 import java.time.LocalDateTime
+import java.util.Locale
 
 enum class ChartPeriod {
     WEEK, MONTH, YEAR
@@ -47,22 +48,24 @@ fun ChartsScreen(viewModel: WeightViewModel) {
     val entries by viewModel.getEntriesForPeriod(startDate, LocalDateTime.now())
         .collectAsState(initial = emptyList())
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Weight Trends", style = MaterialTheme.typography.headlineMedium) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Top App Bar
+        TopAppBar(
+            title = { Text("Weight Trends", style = MaterialTheme.typography.headlineMedium) },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                titleContentColor = MaterialTheme.colorScheme.onPrimary
             )
-        }
-    ) { paddingValues ->
+        )
+
+        // Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -310,7 +313,7 @@ fun WeightChart(entries: List<WeightEntry>) {
                 }
                 else -> {
                     // For year view, show month and year
-                    entry.timestamp.format(java.time.format.DateTimeFormatter.ofPattern("MMM yy"))
+                    entry.timestamp.format(java.time.format.DateTimeFormatter.ofPattern("MMM yy", Locale.ENGLISH))
                 }
             }
         } else {

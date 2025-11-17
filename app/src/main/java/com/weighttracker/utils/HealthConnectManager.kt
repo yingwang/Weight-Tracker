@@ -52,20 +52,6 @@ class HealthConnectManager(private val context: Context) {
      */
     suspend fun getTodaySteps(): Long {
         return try {
-            android.util.Log.d("HealthConnectManager", "getTodaySteps called")
-
-            // Check if Health Connect is available first
-            if (!isAvailable()) {
-                android.util.Log.e("HealthConnectManager", "Health Connect is not available")
-                throw IllegalStateException("Health Connect is not available on this device")
-            }
-
-            // Check permissions
-            if (!hasPermissions()) {
-                android.util.Log.e("HealthConnectManager", "Health Connect permissions not granted")
-                throw SecurityException("Health Connect permissions not granted")
-            }
-
             val today = LocalDateTime.now().toLocalDate()
             val startTime = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
             val endTime = Instant.now()

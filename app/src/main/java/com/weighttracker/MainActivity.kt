@@ -3,6 +3,7 @@ package com.weighttracker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -12,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -113,12 +115,29 @@ fun MainScreen(viewModel: WeightViewModel) {
                     }
                 }
             }
+        },
+        floatingActionButton = {
+            // Show FAB only on Home screen
+            if (currentDestination?.route == Screen.Home.route) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Screen.AddWeight.route) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Weight",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
     ) { innerPadding ->
-        NavGraph(
-            navController = navController,
-            viewModel = viewModel
-        )
+        Box(modifier = Modifier.padding(innerPadding)) {
+            NavGraph(
+                navController = navController,
+                viewModel = viewModel
+            )
+        }
     }
 }
 
