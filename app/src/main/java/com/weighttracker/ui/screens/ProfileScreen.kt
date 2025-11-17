@@ -49,6 +49,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     var healthConnectAvailable by remember { mutableStateOf(false) }
     var healthConnectError by remember { mutableStateOf<String?>(null) }
     var isLoadingSteps by remember { mutableStateOf(false) }
+    var shouldRequestPermissions by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -121,6 +122,15 @@ fun ProfileScreen(viewModel: WeightViewModel) {
         } else {
             Log.w("ProfileScreen", "Not all permissions granted")
             healthConnectError = "Please grant all requested permissions to use Health Connect features"
+        }
+    }
+
+    // Launch permission request on UI thread when flag is set
+    LaunchedEffect(shouldRequestPermissions) {
+        if (shouldRequestPermissions) {
+            shouldRequestPermissions = false
+            Log.d("ProfileScreen", "Launching HC permission request from LaunchedEffect (UI thread)")
+            healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
         }
     }
 
@@ -354,7 +364,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                     Button(
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
-                            // Check availability in background, but launch permissions on UI thread
+                            // Check availability and permissions in background, trigger UI request via state
                             scope.launch {
                                 try {
                                     val sdkStatus = HealthConnectClient.getSdkStatus(context)
@@ -378,17 +388,18 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                     val grantedPermissions = healthConnectClient.permissionController
                                         .getGrantedPermissions()
                                     Log.d("ProfileScreen", "Currently granted: $grantedPermissions")
-                                    Log.d("ProfileScreen", "Requesting permissions: ${HealthConnectManager.PERMISSIONS}")
+                                    Log.d("ProfileScreen", "Required permissions: ${HealthConnectManager.PERMISSIONS}")
 
-                                    // Launch permission request on UI thread (outside coroutine)
+                                    // Trigger permission request via state change (launches on UI thread)
                                     if (!grantedPermissions.containsAll(HealthConnectManager.PERMISSIONS)) {
-                                        healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                                        Log.d("ProfileScreen", "Setting shouldRequestPermissions = true")
+                                        shouldRequestPermissions = true
                                     } else {
                                         Log.d("ProfileScreen", "All permissions already granted")
                                         fetchSteps()
                                     }
                                 } catch (e: Exception) {
-                                    val errorMsg = "Failed to request permissions: ${e.message}"
+                                    val errorMsg = "Failed to check permissions: ${e.message}"
                                     Log.e("ProfileScreen", errorMsg, e)
                                     e.printStackTrace()
                                     healthConnectError = errorMsg
