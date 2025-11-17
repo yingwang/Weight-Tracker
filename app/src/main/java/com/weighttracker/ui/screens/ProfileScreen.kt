@@ -1,6 +1,8 @@
 package com.weighttracker.ui.screens
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,6 +53,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val healthConnectManager = remember { HealthConnectManager(context) }
+    val healthConnectClient = remember { HealthConnectClient.getOrCreate(context) }
 
     // Function to fetch steps
     fun fetchSteps() {
@@ -100,7 +103,27 @@ fun ProfileScreen(viewModel: WeightViewModel) {
         // to actually read step data. Don't try to read here.
     }
 
-    // Health Connect permission launcher
+    // Health Connect settings launcher - to handle result when user returns
+    val healthConnectSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        Log.d("ProfileScreen", "Returned from Health Connect settings")
+        // Re-check permissions after user returns from settings
+        scope.launch {
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            Log.d("ProfileScreen", "Permissions after settings: $granted")
+
+            if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+                Log.d("ProfileScreen", "All permissions granted, fetching steps")
+                fetchSteps()
+            } else {
+                Log.w("ProfileScreen", "Still missing some permissions: ${HealthConnectManager.PERMISSIONS - granted}")
+                healthConnectError = "Please grant all requested permissions in Health Connect"
+            }
+        }
+    }
+
+    // Health Connect permission launcher (fallback method)
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
