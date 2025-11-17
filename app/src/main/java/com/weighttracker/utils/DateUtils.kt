@@ -4,11 +4,12 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 object DateUtils {
-    private val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
-    private val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm")
-    private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM dd")
+    private val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.ENGLISH)
+    private val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm", Locale.ENGLISH)
+    private val shortDateFormatter = DateTimeFormatter.ofPattern("MMM dd", Locale.ENGLISH)
 
     fun formatDate(date: LocalDate): String = date.format(dateFormatter)
     fun formatDateTime(dateTime: LocalDateTime): String = dateTime.format(dateTimeFormatter)

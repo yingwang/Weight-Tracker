@@ -21,6 +21,12 @@ android {
         }
     }
 
+    // Increase ADB timeout for installation
+    adbOptions {
+        timeOutInMs = 10 * 60 * 1000 // 10 minutes
+        installOptions("-d", "-t")
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -87,7 +93,7 @@ dependencies {
     implementation("com.patrykandpatrick.vico:core:1.13.1")
 
     // Health Connect
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
+    implementation("androidx.health.connect:connect-client:1.1.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")

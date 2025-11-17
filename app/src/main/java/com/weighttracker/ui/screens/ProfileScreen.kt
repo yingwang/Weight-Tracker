@@ -2,6 +2,7 @@ package com.weighttracker.ui.screens
 
 import android.Manifest
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -10,7 +11,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import com.weighttracker.utils.BMICalculator
 import com.weighttracker.utils.HealthConnectManager
@@ -40,6 +51,45 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val healthConnectManager = remember { HealthConnectManager(context) }
+
+    // Function to fetch steps
+    fun fetchSteps() {
+        scope.launch {
+            try {
+                isLoadingSteps = true
+                healthConnectError = null
+
+                if (!healthConnectManager.isAvailable()) {
+                    healthConnectError = "Health Connect is not installed on this device"
+                    healthConnectAvailable = false
+                    return@launch
+                }
+
+                healthConnectAvailable = true
+
+                // Check permissions first
+                if (!healthConnectManager.hasPermissions()) {
+                    healthConnectError = "Please click 'Connect Health Data' to grant permissions"
+                    return@launch
+                }
+
+                val steps = healthConnectManager.getTodaySteps()
+                dailySteps = steps
+
+                if (steps == 0L) {
+                    healthConnectError = "No steps recorded today. Start moving to see your steps!"
+                }
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+                healthConnectError = "Please click 'Connect Health Data' to grant permissions"
+            } catch (e: Exception) {
+                e.printStackTrace()
+                healthConnectError = "Error: ${e.message ?: "Unknown error"}"
+            } finally {
+                isLoadingSteps = false
+            }
+        }
+    }
 
     // Permission launcher for Activity Recognition (needed for steps on some devices)
     // Note: This is separate from Health Connect permissions
@@ -62,6 +112,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     }
 
     LaunchedEffect(Unit) {
+        // Request Activity Recognition permission on Android Q+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
@@ -246,11 +297,50 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isLoadingSteps) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                            Text(
+                                text = dailySteps.toString(),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            IconButton(
+                                onClick = { fetchSteps() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Refresh steps",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Error message or status
+                    if (healthConnectError != null) {
                         Text(
-                            text = dailySteps.toString(),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            text = healthConnectError!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    } else if (!healthConnectAvailable) {
+                        Text(
+                            text = "Health Connect is not installed or not available on this device",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
 
@@ -271,6 +361,14 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                 } catch (e: Exception) {
                                     e.printStackTrace()
                                 }
+
+                                Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
+                                healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                            } catch (e: Exception) {
+                                val errorMsg = "Failed to request permissions: ${e.message}"
+                                Log.e("ProfileScreen", errorMsg, e)
+                                e.printStackTrace()
+                                healthConnectError = errorMsg
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
