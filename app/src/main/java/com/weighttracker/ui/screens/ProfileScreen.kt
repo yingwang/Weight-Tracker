@@ -68,13 +68,10 @@ fun ProfileScreen(viewModel: WeightViewModel) {
             permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
 
-        // Check Health Connect availability and load steps
+        // Check Health Connect availability only (don't read data until permissions granted)
         scope.launch {
             try {
                 healthConnectAvailable = healthConnectManager.isAvailable()
-                if (healthConnectAvailable) {
-                    dailySteps = healthConnectManager.getTodaySteps()
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
