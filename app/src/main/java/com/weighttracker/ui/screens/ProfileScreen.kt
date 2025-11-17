@@ -395,19 +395,30 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                     Log.d("ProfileScreen", "All permissions already granted, fetching steps")
                                     fetchSteps()
                                 } else {
-                                    Log.d("ProfileScreen", "Opening Health Connect permission settings")
+                                    Log.d("ProfileScreen", "Opening Health Connect app permission settings")
                                     try {
-                                        // Use explicit Intent to open Health Connect permission screen
-                                        val intent = Intent("androidx.health.ACTION_REQUEST_PERMISSIONS").apply {
-                                            setPackage("com.google.android.apps.healthdata")
-                                            putExtra("androidx.health.EXTRA_PERMISSIONS",
-                                                HealthConnectManager.PERMISSIONS.toTypedArray())
+                                        // Open Health Connect app info/permission settings
+                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.parse("package:com.google.android.apps.healthdata")
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         }
                                         healthConnectSettingsLauncher.launch(intent)
                                     } catch (e: Exception) {
-                                        Log.e("ProfileScreen", "Failed to open HC permission screen: ${e.message}", e)
-                                        // Fallback: try the launcher approach
-                                        shouldRequestPermissions = true
+                                        Log.e("ProfileScreen", "Failed to open HC settings: ${e.message}", e)
+                                        // Last resort: Open Health Connect app directly
+                                        try {
+                                            val launchIntent = context.packageManager
+                                                .getLaunchIntentForPackage("com.google.android.apps.healthdata")
+                                            if (launchIntent != null) {
+                                                context.startActivity(launchIntent)
+                                                healthConnectError = "Please grant permissions in Health Connect, then tap refresh"
+                                            } else {
+                                                healthConnectError = "Health Connect app not found"
+                                            }
+                                        } catch (e2: Exception) {
+                                            Log.e("ProfileScreen", "Failed to open HC app: ${e2.message}", e2)
+                                            healthConnectError = "Unable to open Health Connect"
+                                        }
                                     }
                                 }
                             }
