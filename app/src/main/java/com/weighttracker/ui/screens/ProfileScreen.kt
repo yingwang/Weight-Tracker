@@ -1,6 +1,8 @@
 package com.weighttracker.ui.screens
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -364,45 +366,31 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                     Button(
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
-                            // Check availability and permissions in background, trigger UI request via state
-                            scope.launch {
+                            try {
+                                // Try to open Health Connect app directly for permissions
+                                val intent = Intent().apply {
+                                    action = "androidx.health.ACTION_REQUEST_PERMISSIONS"
+                                    putExtra("androidx.health.EXTRA_PERMISSIONS",
+                                        HealthConnectManager.PERMISSIONS.toTypedArray())
+                                    setPackage("com.google.android.apps.healthdata")
+                                }
+                                Log.d("ProfileScreen", "Launching Health Connect with manual intent")
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.e("ProfileScreen", "Failed to launch Health Connect manually: ${e.message}")
+                                e.printStackTrace()
+
+                                // Fallback: try to open Health Connect settings
                                 try {
-                                    val sdkStatus = HealthConnectClient.getSdkStatus(context)
-                                    Log.d("ProfileScreen", "Health Connect SDK status: $sdkStatus")
-
-                                    if (!healthConnectManager.isAvailable()) {
-                                        val errorMsg = when (sdkStatus) {
-                                            HealthConnectClient.SDK_UNAVAILABLE ->
-                                                "Health Connect is not available on this device"
-                                            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
-                                                "Health Connect needs to be updated. Please update from Play Store."
-                                            else ->
-                                                "Health Connect is not available. Please install it from the Play Store."
-                                        }
-                                        Log.w("ProfileScreen", errorMsg)
-                                        healthConnectError = errorMsg
-                                        return@launch
+                                    val settingsIntent = Intent().apply {
+                                        action = "android.settings.APPLICATION_DETAILS_SETTINGS"
+                                        data = Uri.fromParts("package", "com.google.android.apps.healthdata", null)
                                     }
-
-                                    // Check currently granted permissions
-                                    val grantedPermissions = healthConnectClient.permissionController
-                                        .getGrantedPermissions()
-                                    Log.d("ProfileScreen", "Currently granted: $grantedPermissions")
-                                    Log.d("ProfileScreen", "Required permissions: ${HealthConnectManager.PERMISSIONS}")
-
-                                    // Trigger permission request via state change (launches on UI thread)
-                                    if (!grantedPermissions.containsAll(HealthConnectManager.PERMISSIONS)) {
-                                        Log.d("ProfileScreen", "Setting shouldRequestPermissions = true")
-                                        shouldRequestPermissions = true
-                                    } else {
-                                        Log.d("ProfileScreen", "All permissions already granted")
-                                        fetchSteps()
-                                    }
-                                } catch (e: Exception) {
-                                    val errorMsg = "Failed to check permissions: ${e.message}"
-                                    Log.e("ProfileScreen", errorMsg, e)
-                                    e.printStackTrace()
-                                    healthConnectError = errorMsg
+                                    context.startActivity(settingsIntent)
+                                    healthConnectError = "Please grant permissions manually in Health Connect settings"
+                                } catch (e2: Exception) {
+                                    Log.e("ProfileScreen", "Failed to open settings: ${e2.message}")
+                                    healthConnectError = "Unable to open Health Connect. Please check if it's installed."
                                 }
                             }
                         },
