@@ -366,6 +366,16 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
                             try {
+                                // Check if Health Connect app is installed
+                                val appInstalled = healthConnectManager.isHealthConnectAppInstalled()
+                                Log.d("ProfileScreen", "Health Connect app installed: $appInstalled")
+
+                                if (!appInstalled) {
+                                    healthConnectError = "Health Connect app is not installed. Please install it from the Play Store."
+                                    Log.w("ProfileScreen", "Health Connect app not found on device")
+                                    return@Button
+                                }
+
                                 val sdkStatus = HealthConnectClient.getSdkStatus(context)
                                 Log.d("ProfileScreen", "Health Connect SDK status: $sdkStatus")
 
