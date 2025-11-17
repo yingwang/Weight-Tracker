@@ -10,7 +10,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,19 +44,49 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
     var showEditDialog by remember { mutableStateOf(false) }
     var dailySteps by remember { mutableStateOf(0L) }
+    var healthConnectAvailable by remember { mutableStateOf(false) }
+    var healthConnectError by remember { mutableStateOf<String?>(null) }
+    var isLoadingSteps by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val healthConnectManager = remember { HealthConnectManager(context) }
+
+    // Function to fetch steps
+    fun fetchSteps() {
+        scope.launch {
+            try {
+                isLoadingSteps = true
+                healthConnectError = null
+
+                if (!healthConnectManager.isAvailable()) {
+                    healthConnectError = "Health Connect not available"
+                    healthConnectAvailable = false
+                    return@launch
+                }
+
+                healthConnectAvailable = true
+                val steps = healthConnectManager.getTodaySteps()
+                dailySteps = steps
+
+                if (steps == 0L) {
+                    healthConnectError = "No steps data found. Make sure you've granted permissions and have step data in Health Connect."
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                healthConnectError = "Error fetching steps: ${e.message}"
+            } finally {
+                isLoadingSteps = false
+            }
+        }
+    }
 
     // Permission launcher for Activity Recognition (needed for steps on some devices)
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            scope.launch {
-                dailySteps = healthConnectManager.getTodaySteps()
-            }
+            fetchSteps()
         }
     }
 
@@ -55,26 +94,18 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        scope.launch {
-            dailySteps = healthConnectManager.getTodaySteps()
-        }
+        // After granting permissions, fetch steps
+        fetchSteps()
     }
 
     LaunchedEffect(Unit) {
+        // Request Activity Recognition permission on Android Q+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
 
-        // Load steps from Health Connect
-        scope.launch {
-            try {
-                if (healthConnectManager.isAvailable()) {
-                    dailySteps = healthConnectManager.getTodaySteps()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        // Initial load of steps from Health Connect
+        fetchSteps()
     }
 
     Column(
@@ -247,11 +278,50 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isLoadingSteps) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                            Text(
+                                text = dailySteps.toString(),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            IconButton(
+                                onClick = { fetchSteps() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Refresh steps",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Error message or status
+                    if (healthConnectError != null) {
                         Text(
-                            text = dailySteps.toString(),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            text = healthConnectError!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    } else if (!healthConnectAvailable) {
+                        Text(
+                            text = "Health Connect is not installed or not available on this device",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
 
