@@ -92,10 +92,12 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
     // Health Connect permission launcher
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
+        PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
         // After granting permissions, fetch steps
-        fetchSteps()
+        if (granted.isNotEmpty()) {
+            fetchSteps()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -327,15 +329,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
                     Button(
                         onClick = {
-                            scope.launch {
-                                try {
-                                    val permissionIntent = PermissionController.createRequestPermissionResultContract()
-                                        .createIntent(context, HealthConnectManager.PERMISSIONS)
-                                    healthConnectPermissionLauncher.launch(permissionIntent)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
+                            healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
