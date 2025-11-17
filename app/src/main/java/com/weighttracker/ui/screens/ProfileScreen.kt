@@ -367,10 +367,9 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
                             try {
-                                // Use the permission controller to create the proper intent
-                                val permissionIntent = healthConnectClient.permissionController
-                                    .createRequestPermissionActivityContract()
-                                    .createIntent(context, HealthConnectManager.PERMISSIONS)
+                                // Use the permission contract to create the proper intent
+                                val contract = PermissionController.createRequestPermissionResultContract()
+                                val permissionIntent = contract.createIntent(context, HealthConnectManager.PERMISSIONS)
 
                                 Log.d("ProfileScreen", "Launching Health Connect permission intent")
                                 Log.d("ProfileScreen", "Intent action: ${permissionIntent.action}")
