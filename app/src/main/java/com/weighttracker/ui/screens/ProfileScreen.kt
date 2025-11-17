@@ -42,14 +42,12 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val healthConnectManager = remember { HealthConnectManager(context) }
 
     // Permission launcher for Activity Recognition (needed for steps on some devices)
+    // Note: This is separate from Health Connect permissions
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted) {
-            scope.launch {
-                dailySteps = healthConnectManager.getTodaySteps()
-            }
-        }
+        // Activity Recognition permission granted, but we still need Health Connect permissions
+        // to actually read step data. Don't try to read here.
     }
 
     // Health Connect permission launcher
