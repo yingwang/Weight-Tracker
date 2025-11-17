@@ -2,6 +2,7 @@ package com.weighttracker.ui.screens
 
 import android.Manifest
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import com.weighttracker.utils.BMICalculator
 import com.weighttracker.utils.HealthConnectManager
@@ -94,9 +96,14 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
+        Log.d("ProfileScreen", "Health Connect permissions result: $granted")
         // After granting permissions, fetch steps
         if (granted.isNotEmpty()) {
+            Log.d("ProfileScreen", "Permissions granted, fetching steps")
             fetchSteps()
+        } else {
+            Log.w("ProfileScreen", "No permissions granted")
+            healthConnectError = "Permissions were not granted"
         }
     }
 
@@ -329,7 +336,35 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
                     Button(
                         onClick = {
-                            healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                            Log.d("ProfileScreen", "Connect Health Data button clicked")
+                            scope.launch {
+                                try {
+                                    val sdkStatus = HealthConnectClient.getSdkStatus(context)
+                                    Log.d("ProfileScreen", "Health Connect SDK status: $sdkStatus")
+
+                                    if (!healthConnectManager.isAvailable()) {
+                                        val errorMsg = when (sdkStatus) {
+                                            HealthConnectClient.SDK_UNAVAILABLE ->
+                                                "Health Connect is not available on this device"
+                                            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
+                                                "Health Connect needs to be updated. Please update from Play Store."
+                                            else ->
+                                                "Health Connect is not available. Please install it from the Play Store."
+                                        }
+                                        Log.w("ProfileScreen", errorMsg)
+                                        healthConnectError = errorMsg
+                                        return@launch
+                                    }
+
+                                    Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
+                                    healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                                } catch (e: Exception) {
+                                    val errorMsg = "Failed to request permissions: ${e.message}"
+                                    Log.e("ProfileScreen", errorMsg, e)
+                                    e.printStackTrace()
+                                    healthConnectError = errorMsg
+                                }
+                            }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
