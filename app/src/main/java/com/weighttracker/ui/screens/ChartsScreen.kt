@@ -20,6 +20,10 @@ import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.m3.style.m3ChartStyle
 import com.patrykandpatrick.vico.compose.style.ProvideChartStyle
 import com.patrykandpatrick.vico.core.entry.entryModelOf
+import com.patrykandpatrick.vico.core.entry.entryOf
+import com.patrykandpatrick.vico.core.axis.AxisPosition
+import com.patrykandpatrick.vico.core.axis.formatter.AxisValueFormatter
+import java.time.ZoneId
 import com.weighttracker.data.entity.WeightEntry
 import com.weighttracker.utils.DateUtils
 import com.weighttracker.viewmodel.WeightViewModel
@@ -274,14 +278,55 @@ fun WeightChart(entries: List<WeightEntry>) {
     if (entries.isEmpty()) return
 
     val sortedEntries = entries.sortedBy { it.timestamp }
-    val chartEntryModel = entryModelOf(*sortedEntries.map { it.weight }.toFloatArray())
+
+    // Create chart entries with x (timestamp) and y (weight) coordinates
+    val chartEntries = sortedEntries.mapIndexed { index, entry ->
+        entryOf(index.toFloat(), entry.weight)
+    }
+
+    val chartEntryModel = entryModelOf(chartEntries)
+
+    // Determine the date format based on the time span
+    val daysDiff = if (sortedEntries.size > 1) {
+        java.time.temporal.ChronoUnit.DAYS.between(
+            sortedEntries.first().timestamp.toLocalDate(),
+            sortedEntries.last().timestamp.toLocalDate()
+        )
+    } else 0L
+
+    // Create a custom axis value formatter for dates
+    val dateFormatter = AxisValueFormatter<AxisPosition.Horizontal.Bottom> { value, _ ->
+        val index = value.toInt()
+        if (index >= 0 && index < sortedEntries.size) {
+            val entry = sortedEntries[index]
+            when {
+                daysDiff <= 7 -> {
+                    // For week view, show short date (e.g., "Jan 15")
+                    DateUtils.formatShortDate(entry.timestamp.toLocalDate())
+                }
+                daysDiff <= 31 -> {
+                    // For month view, show short date
+                    DateUtils.formatShortDate(entry.timestamp.toLocalDate())
+                }
+                else -> {
+                    // For year view, show month and year
+                    entry.timestamp.format(java.time.format.DateTimeFormatter.ofPattern("MMM yy"))
+                }
+            }
+        } else {
+            ""
+        }
+    }
 
     ProvideChartStyle(chartStyle = m3ChartStyle()) {
         Chart(
             chart = lineChart(),
             model = chartEntryModel,
             startAxis = rememberStartAxis(),
-            bottomAxis = rememberBottomAxis(),
+            bottomAxis = rememberBottomAxis(
+                valueFormatter = dateFormatter,
+                guideline = null
+            ),
             modifier = Modifier.fillMaxSize()
         )
     }

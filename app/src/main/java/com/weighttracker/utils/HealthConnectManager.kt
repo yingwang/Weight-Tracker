@@ -30,10 +30,33 @@ class HealthConnectManager(private val context: Context) {
     }
 
     /**
+     * Check if permissions are granted
+     */
+    suspend fun hasPermissions(): Boolean {
+        return try {
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            PERMISSIONS.all { it in granted }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /**
      * Get steps count for today
      */
     suspend fun getTodaySteps(): Long {
         return try {
+            // Check if Health Connect is available first
+            if (!isAvailable()) {
+                throw IllegalStateException("Health Connect is not available on this device")
+            }
+
+            // Check permissions
+            if (!hasPermissions()) {
+                throw SecurityException("Health Connect permissions not granted")
+            }
+
             val today = LocalDateTime.now().toLocalDate()
             val startTime = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
             val endTime = Instant.now()
@@ -47,7 +70,7 @@ class HealthConnectManager(private val context: Context) {
             response.records.sumOf { it.count }
         } catch (e: Exception) {
             e.printStackTrace()
-            0L
+            throw e
         }
     }
 
