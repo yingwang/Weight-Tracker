@@ -81,9 +81,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
 
-    // Charts - MPAndroidChart
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-
     // Vico Charts (Modern Compose charts)
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
