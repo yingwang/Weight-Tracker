@@ -58,13 +58,13 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            android.util.Log.d("HealthConnectManager", "Granted permissions: $granted")
+            android.util.Log.d("HealthConnectManager", "Required permissions: $PERMISSIONS")
             val hasAll = PERMISSIONS.all { it in granted }
-            Log.d(TAG, "Granted permissions: $granted")
-            Log.d(TAG, "Required permissions: $PERMISSIONS")
-            Log.d(TAG, "Has all required permissions: $hasAll")
+            android.util.Log.d("HealthConnectManager", "Has all required permissions: $hasAll")
             hasAll
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking permissions", e)
+            android.util.Log.e("HealthConnectManager", "Error checking permissions", e)
             e.printStackTrace()
             false
         }
@@ -79,14 +79,20 @@ class HealthConnectManager(private val context: Context) {
             val startTime = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
             val endTime = Instant.now()
 
+            android.util.Log.d("HealthConnectManager", "Reading steps from $startTime to $endTime")
+
             val request = ReadRecordsRequest(
                 recordType = StepsRecord::class,
                 timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
             )
 
             val response = healthConnectClient.readRecords(request)
-            response.records.sumOf { it.count }
+            val totalSteps = response.records.sumOf { it.count }
+
+            android.util.Log.d("HealthConnectManager", "Found ${response.records.size} step records, total: $totalSteps")
+            totalSteps
         } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error getting today's steps", e)
             e.printStackTrace()
             throw e
         }
