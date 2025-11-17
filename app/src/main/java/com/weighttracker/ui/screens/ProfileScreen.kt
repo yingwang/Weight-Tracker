@@ -106,7 +106,27 @@ fun ProfileScreen(viewModel: WeightViewModel) {
         }
     }
 
-    // Health Connect permission launcher
+    // Health Connect settings launcher - to handle result when user returns
+    val healthConnectSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        Log.d("ProfileScreen", "Returned from Health Connect settings")
+        // Re-check permissions after user returns from settings
+        scope.launch {
+            val granted = healthConnectClient.permissionController.getGrantedPermissions()
+            Log.d("ProfileScreen", "Permissions after settings: $granted")
+
+            if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+                Log.d("ProfileScreen", "All permissions granted, fetching steps")
+                fetchSteps()
+            } else {
+                Log.w("ProfileScreen", "Still missing some permissions: ${HealthConnectManager.PERMISSIONS - granted}")
+                healthConnectError = "Please grant all requested permissions in Health Connect"
+            }
+        }
+    }
+
+    // Health Connect permission launcher (fallback method)
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
@@ -375,9 +395,20 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                     Log.d("ProfileScreen", "All permissions already granted, fetching steps")
                                     fetchSteps()
                                 } else {
-                                    Log.d("ProfileScreen", "Requesting permissions via launcher")
-                                    // Trigger permission request from UI thread via LaunchedEffect
-                                    shouldRequestPermissions = true
+                                    Log.d("ProfileScreen", "Opening Health Connect permission settings")
+                                    try {
+                                        // Use explicit Intent to open Health Connect permission screen
+                                        val intent = Intent("androidx.health.ACTION_REQUEST_PERMISSIONS").apply {
+                                            setPackage("com.google.android.apps.healthdata")
+                                            putExtra("androidx.health.EXTRA_PERMISSIONS",
+                                                HealthConnectManager.PERMISSIONS.toTypedArray())
+                                        }
+                                        healthConnectSettingsLauncher.launch(intent)
+                                    } catch (e: Exception) {
+                                        Log.e("ProfileScreen", "Failed to open HC permission screen: ${e.message}", e)
+                                        // Fallback: try the launcher approach
+                                        shouldRequestPermissions = true
+                                    }
                                 }
                             }
                         },
