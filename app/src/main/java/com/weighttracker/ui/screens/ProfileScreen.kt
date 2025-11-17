@@ -60,21 +60,31 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                 healthConnectError = null
 
                 if (!healthConnectManager.isAvailable()) {
-                    healthConnectError = "Health Connect not available"
+                    healthConnectError = "Health Connect is not installed on this device"
                     healthConnectAvailable = false
                     return@launch
                 }
 
                 healthConnectAvailable = true
+
+                // Check permissions first
+                if (!healthConnectManager.hasPermissions()) {
+                    healthConnectError = "Please click 'Connect Health Data' to grant permissions"
+                    return@launch
+                }
+
                 val steps = healthConnectManager.getTodaySteps()
                 dailySteps = steps
 
                 if (steps == 0L) {
-                    healthConnectError = "No steps data found. Make sure you've granted permissions and have step data in Health Connect."
+                    healthConnectError = "No steps recorded today. Start moving to see your steps!"
                 }
+            } catch (e: SecurityException) {
+                e.printStackTrace()
+                healthConnectError = "Please click 'Connect Health Data' to grant permissions"
             } catch (e: Exception) {
                 e.printStackTrace()
-                healthConnectError = "Error fetching steps: ${e.message}"
+                healthConnectError = "Error: ${e.message ?: "Unknown error"}"
             } finally {
                 isLoadingSteps = false
             }
