@@ -49,6 +49,8 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var dailySteps by remember { mutableStateOf(0L) }
     var healthConnectAvailable by remember { mutableStateOf(false) }
+    var isLoadingSteps by remember { mutableStateOf(false) }
+    var healthConnectError by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -380,18 +382,14 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         onClick = {
                             if (healthConnectAvailable) {
                                 try {
+                                    Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
                                     healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
                                 } catch (e: Exception) {
+                                    val errorMsg = "Failed to request permissions: ${e.message}"
+                                    Log.e("ProfileScreen", errorMsg, e)
                                     e.printStackTrace()
+                                    healthConnectError = errorMsg
                                 }
-
-                                Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
-                                healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
-                            } catch (e: Exception) {
-                                val errorMsg = "Failed to request permissions: ${e.message}"
-                                Log.e("ProfileScreen", errorMsg, e)
-                                e.printStackTrace()
-                                healthConnectError = errorMsg
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
