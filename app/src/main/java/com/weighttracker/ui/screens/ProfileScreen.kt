@@ -92,9 +92,10 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
     // Health Connect permission launcher
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
         // After granting permissions, fetch steps
+        android.util.Log.d("ProfileScreen", "Health Connect permissions granted: $granted")
         fetchSteps()
     }
 
@@ -104,8 +105,33 @@ fun ProfileScreen(viewModel: WeightViewModel) {
             permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
 
-        // Initial load of steps from Health Connect
-        fetchSteps()
+        // Check Health Connect status
+        val sdkStatus = HealthConnectClient.getSdkStatus(context)
+        android.util.Log.d("ProfileScreen", "Health Connect SDK status: $sdkStatus")
+
+        when (sdkStatus) {
+            HealthConnectClient.SDK_UNAVAILABLE -> {
+                healthConnectError = "Health Connect is not installed on this device"
+                healthConnectAvailable = false
+            }
+            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
+                healthConnectError = "Please update Health Connect app"
+                healthConnectAvailable = false
+            }
+            HealthConnectClient.SDK_AVAILABLE -> {
+                healthConnectAvailable = true
+                // Check if we already have permissions
+                scope.launch {
+                    if (healthConnectManager.hasPermissions()) {
+                        android.util.Log.d("ProfileScreen", "Permissions already granted, fetching steps")
+                        fetchSteps()
+                    } else {
+                        android.util.Log.d("ProfileScreen", "Permissions not yet granted")
+                        healthConnectError = "Please grant Health Connect permissions to see your steps"
+                    }
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -327,14 +353,12 @@ fun ProfileScreen(viewModel: WeightViewModel) {
 
                     Button(
                         onClick = {
-                            scope.launch {
-                                try {
-                                    val permissionIntent = PermissionController.createRequestPermissionResultContract()
-                                        .createIntent(context, HealthConnectManager.PERMISSIONS)
-                                    healthConnectPermissionLauncher.launch(permissionIntent)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                            try {
+                                android.util.Log.d("ProfileScreen", "Connect Health Data button clicked")
+                                healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                            } catch (e: Exception) {
+                                android.util.Log.e("ProfileScreen", "Error launching permission request", e)
+                                e.printStackTrace()
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
