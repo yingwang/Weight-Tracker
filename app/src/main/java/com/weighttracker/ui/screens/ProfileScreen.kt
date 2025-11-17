@@ -367,30 +367,34 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
                             try {
-                                // Try to open Health Connect app directly for permissions
-                                val intent = Intent().apply {
-                                    action = "androidx.health.ACTION_REQUEST_PERMISSIONS"
-                                    putExtra("androidx.health.EXTRA_PERMISSIONS",
-                                        HealthConnectManager.PERMISSIONS.toTypedArray())
-                                    setPackage("com.google.android.apps.healthdata")
-                                }
-                                Log.d("ProfileScreen", "Launching Health Connect with manual intent")
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Log.e("ProfileScreen", "Failed to launch Health Connect manually: ${e.message}")
-                                e.printStackTrace()
+                                // Use the permission controller to create the proper intent
+                                val permissionIntent = healthConnectClient.permissionController
+                                    .createRequestPermissionActivityContract()
+                                    .createIntent(context, HealthConnectManager.PERMISSIONS)
 
-                                // Fallback: try to open Health Connect settings
+                                Log.d("ProfileScreen", "Launching Health Connect permission intent")
+                                Log.d("ProfileScreen", "Intent action: ${permissionIntent.action}")
+                                Log.d("ProfileScreen", "Intent package: ${permissionIntent.`package`}")
+                                Log.d("ProfileScreen", "Intent component: ${permissionIntent.component}")
+
+                                context.startActivity(permissionIntent)
+                            } catch (e: Exception) {
+                                Log.e("ProfileScreen", "Failed to launch HC permission intent: ${e.message}", e)
+
+                                // Fallback: Open Health Connect app directly
                                 try {
-                                    val settingsIntent = Intent().apply {
-                                        action = "android.settings.APPLICATION_DETAILS_SETTINGS"
-                                        data = Uri.fromParts("package", "com.google.android.apps.healthdata", null)
+                                    val launchIntent = context.packageManager
+                                        .getLaunchIntentForPackage("com.google.android.apps.healthdata")
+                                    if (launchIntent != null) {
+                                        Log.d("ProfileScreen", "Opening Health Connect app")
+                                        context.startActivity(launchIntent)
+                                        healthConnectError = "Please grant permissions manually in Health Connect app"
+                                    } else {
+                                        healthConnectError = "Health Connect app not found"
                                     }
-                                    context.startActivity(settingsIntent)
-                                    healthConnectError = "Please grant permissions manually in Health Connect settings"
                                 } catch (e2: Exception) {
-                                    Log.e("ProfileScreen", "Failed to open settings: ${e2.message}")
-                                    healthConnectError = "Unable to open Health Connect. Please check if it's installed."
+                                    Log.e("ProfileScreen", "Failed to open HC app: ${e2.message}", e2)
+                                    healthConnectError = "Unable to open Health Connect"
                                 }
                             }
                         },
