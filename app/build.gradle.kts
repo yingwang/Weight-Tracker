@@ -87,7 +87,7 @@ dependencies {
     implementation("com.patrykandpatrick.vico:core:1.13.1")
 
     // Health Connect
-    implementation("androidx.health.connect:connect-client:1.1.0")
+    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
