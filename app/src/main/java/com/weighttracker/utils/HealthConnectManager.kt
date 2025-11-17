@@ -1,6 +1,7 @@
 package com.weighttracker.utils
 
 import android.content.Context
+import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.StepsRecord
@@ -15,6 +16,8 @@ class HealthConnectManager(private val context: Context) {
     private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
 
     companion object {
+        private const val TAG = "HealthConnectManager"
+
         val PERMISSIONS = setOf(
             HealthPermission.getReadPermission(StepsRecord::class),
             HealthPermission.getWritePermission(WeightRecord::class),
@@ -23,10 +26,30 @@ class HealthConnectManager(private val context: Context) {
     }
 
     /**
+     * Check if Health Connect app is installed on the device
+     */
+    fun isHealthConnectAppInstalled(): Boolean {
+        return try {
+            val packageManager = context.packageManager
+            val packageName = "com.google.android.apps.healthdata"
+            packageManager.getPackageInfo(packageName, 0)
+            Log.d(TAG, "Health Connect app is installed: $packageName")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Health Connect app is not installed", e)
+            false
+        }
+    }
+
+    /**
      * Check if Health Connect is available on this device
      */
     suspend fun isAvailable(): Boolean {
-        return HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+        val status = HealthConnectClient.getSdkStatus(context)
+        val available = status == HealthConnectClient.SDK_AVAILABLE
+        val appInstalled = isHealthConnectAppInstalled()
+        Log.d(TAG, "Health Connect availability check - Status: $status, Available: $available, App installed: $appInstalled")
+        return available
     }
 
     /**
@@ -35,8 +58,13 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasPermissions(): Boolean {
         return try {
             val granted = healthConnectClient.permissionController.getGrantedPermissions()
-            PERMISSIONS.all { it in granted }
+            android.util.Log.d("HealthConnectManager", "Granted permissions: $granted")
+            android.util.Log.d("HealthConnectManager", "Required permissions: $PERMISSIONS")
+            val hasAll = PERMISSIONS.all { it in granted }
+            android.util.Log.d("HealthConnectManager", "Has all required permissions: $hasAll")
+            hasAll
         } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error checking permissions", e)
             e.printStackTrace()
             false
         }
@@ -51,14 +79,20 @@ class HealthConnectManager(private val context: Context) {
             val startTime = today.atStartOfDay(ZoneId.systemDefault()).toInstant()
             val endTime = Instant.now()
 
+            android.util.Log.d("HealthConnectManager", "Reading steps from $startTime to $endTime")
+
             val request = ReadRecordsRequest(
                 recordType = StepsRecord::class,
                 timeRangeFilter = TimeRangeFilter.between(startTime, endTime)
             )
 
             val response = healthConnectClient.readRecords(request)
-            response.records.sumOf { it.count }
+            val totalSteps = response.records.sumOf { it.count }
+
+            android.util.Log.d("HealthConnectManager", "Found ${response.records.size} step records, total: $totalSteps")
+            totalSteps
         } catch (e: Exception) {
+            android.util.Log.e("HealthConnectManager", "Error getting today's steps", e)
             e.printStackTrace()
             throw e
         }

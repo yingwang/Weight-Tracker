@@ -49,9 +49,6 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var dailySteps by remember { mutableStateOf(0L) }
     var healthConnectAvailable by remember { mutableStateOf(false) }
-    var healthConnectError by remember { mutableStateOf<String?>(null) }
-    var isLoadingSteps by remember { mutableStateOf(false) }
-    var shouldRequestPermissions by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -98,12 +95,12 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     }
 
     // Permission launcher for Activity Recognition (needed for steps on some devices)
+    // Note: This is separate from Health Connect permissions
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted) {
-            fetchSteps()
-        }
+        // Activity Recognition permission granted, but we still need Health Connect permissions
+        // to actually read step data. Don't try to read here.
     }
 
     // Health Connect settings launcher - to handle result when user returns
@@ -130,29 +127,10 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
-        Log.d("ProfileScreen", "Health Connect permissions callback received")
-        Log.d("ProfileScreen", "Granted permissions: $granted")
-        Log.d("ProfileScreen", "Granted count: ${granted.size}")
-        Log.d("ProfileScreen", "Required permissions: ${HealthConnectManager.PERMISSIONS}")
-
-        val allGranted = granted.containsAll(HealthConnectManager.PERMISSIONS)
-        Log.d("ProfileScreen", "All permissions granted: $allGranted")
-
-        if (allGranted) {
-            Log.d("ProfileScreen", "All required permissions granted, fetching steps")
-            fetchSteps()
-        } else {
-            Log.w("ProfileScreen", "Not all permissions granted")
-            healthConnectError = "Please grant all requested permissions to use Health Connect features"
-        }
-    }
-
-    // Launch permission request on UI thread when flag is set
-    LaunchedEffect(shouldRequestPermissions) {
-        if (shouldRequestPermissions) {
-            shouldRequestPermissions = false
-            Log.d("ProfileScreen", "Launching HC permission request from LaunchedEffect (UI thread)")
-            healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+        scope.launch {
+            if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
+                dailySteps = healthConnectManager.getTodaySteps()
+            }
         }
     }
 
@@ -162,8 +140,14 @@ fun ProfileScreen(viewModel: WeightViewModel) {
             permissionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
 
-        // Initial load of steps from Health Connect
-        fetchSteps()
+        // Check Health Connect availability only (don't read data until permissions granted)
+        scope.launch {
+            try {
+                healthConnectAvailable = healthConnectManager.isAvailable()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     Column(
@@ -383,48 +367,36 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                         )
                     }
 
+                    if (!healthConnectAvailable) {
+                        Text(
+                            text = "Health Connect not available on this device",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
                     Button(
                         onClick = {
-                            Log.d("ProfileScreen", "Connect Health Data button clicked")
-                            scope.launch {
-                                // Check if permissions are already granted first
-                                val granted = healthConnectClient.permissionController.getGrantedPermissions()
-                                Log.d("ProfileScreen", "Currently granted permissions: $granted")
-
-                                if (granted.containsAll(HealthConnectManager.PERMISSIONS)) {
-                                    Log.d("ProfileScreen", "All permissions already granted, fetching steps")
-                                    fetchSteps()
-                                } else {
-                                    Log.d("ProfileScreen", "Opening Health Connect app permission settings")
-                                    try {
-                                        // Open Health Connect app info/permission settings
-                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data = Uri.parse("package:com.google.android.apps.healthdata")
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        healthConnectSettingsLauncher.launch(intent)
-                                    } catch (e: Exception) {
-                                        Log.e("ProfileScreen", "Failed to open HC settings: ${e.message}", e)
-                                        // Last resort: Open Health Connect app directly
-                                        try {
-                                            val launchIntent = context.packageManager
-                                                .getLaunchIntentForPackage("com.google.android.apps.healthdata")
-                                            if (launchIntent != null) {
-                                                context.startActivity(launchIntent)
-                                                healthConnectError = "Please grant permissions in Health Connect, then tap refresh"
-                                            } else {
-                                                healthConnectError = "Health Connect app not found"
-                                            }
-                                        } catch (e2: Exception) {
-                                            Log.e("ProfileScreen", "Failed to open HC app: ${e2.message}", e2)
-                                            healthConnectError = "Unable to open Health Connect"
-                                        }
-                                    }
+                            if (healthConnectAvailable) {
+                                try {
+                                    healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
                                 }
+
+                                Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
+                                healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                            } catch (e: Exception) {
+                                val errorMsg = "Failed to request permissions: ${e.message}"
+                                Log.e("ProfileScreen", errorMsg, e)
+                                e.printStackTrace()
+                                healthConnectError = errorMsg
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
+                        enabled = healthConnectAvailable,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -436,7 +408,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Connect Health Data")
+                        Text(if (healthConnectAvailable) "Connect Health Data" else "Health Connect Unavailable")
                     }
                 }
             }
