@@ -28,6 +28,7 @@ import com.weighttracker.data.entity.WeightEntry
 import com.weighttracker.utils.DateUtils
 import com.weighttracker.viewmodel.WeightViewModel
 import java.time.LocalDateTime
+import java.util.Locale
 
 enum class ChartPeriod {
     WEEK, MONTH, YEAR
@@ -310,7 +311,7 @@ fun WeightChart(entries: List<WeightEntry>) {
                 }
                 else -> {
                     // For year view, show month and year
-                    entry.timestamp.format(java.time.format.DateTimeFormatter.ofPattern("MMM yy"))
+                    entry.timestamp.format(java.time.format.DateTimeFormatter.ofPattern("MMM yy", Locale.ENGLISH))
                 }
             }
         } else {
