@@ -53,6 +53,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val healthConnectManager = remember { HealthConnectManager(context) }
+    val healthConnectClient = remember { HealthConnectClient.getOrCreate(context) }
 
     // Function to fetch steps
     fun fetchSteps() {
@@ -106,14 +107,20 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract()
     ) { granted ->
-        Log.d("ProfileScreen", "Health Connect permissions result: $granted")
-        // After granting permissions, fetch steps
-        if (granted.isNotEmpty()) {
-            Log.d("ProfileScreen", "Permissions granted, fetching steps")
+        Log.d("ProfileScreen", "Health Connect permissions callback received")
+        Log.d("ProfileScreen", "Granted permissions: $granted")
+        Log.d("ProfileScreen", "Granted count: ${granted.size}")
+        Log.d("ProfileScreen", "Required permissions: ${HealthConnectManager.PERMISSIONS}")
+
+        val allGranted = granted.containsAll(HealthConnectManager.PERMISSIONS)
+        Log.d("ProfileScreen", "All permissions granted: $allGranted")
+
+        if (allGranted) {
+            Log.d("ProfileScreen", "All required permissions granted, fetching steps")
             fetchSteps()
         } else {
-            Log.w("ProfileScreen", "No permissions granted")
-            healthConnectError = "Permissions were not granted"
+            Log.w("ProfileScreen", "Not all permissions granted")
+            healthConnectError = "Please grant all requested permissions to use Health Connect features"
         }
     }
 
@@ -347,6 +354,7 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                     Button(
                         onClick = {
                             Log.d("ProfileScreen", "Connect Health Data button clicked")
+                            // Check availability in background, but launch permissions on UI thread
                             scope.launch {
                                 try {
                                     val sdkStatus = HealthConnectClient.getSdkStatus(context)
@@ -366,8 +374,19 @@ fun ProfileScreen(viewModel: WeightViewModel) {
                                         return@launch
                                     }
 
-                                    Log.d("ProfileScreen", "Launching permission request with: ${HealthConnectManager.PERMISSIONS}")
-                                    healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                                    // Check currently granted permissions
+                                    val grantedPermissions = healthConnectClient.permissionController
+                                        .getGrantedPermissions()
+                                    Log.d("ProfileScreen", "Currently granted: $grantedPermissions")
+                                    Log.d("ProfileScreen", "Requesting permissions: ${HealthConnectManager.PERMISSIONS}")
+
+                                    // Launch permission request on UI thread (outside coroutine)
+                                    if (!grantedPermissions.containsAll(HealthConnectManager.PERMISSIONS)) {
+                                        healthConnectPermissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                                    } else {
+                                        Log.d("ProfileScreen", "All permissions already granted")
+                                        fetchSteps()
+                                    }
                                 } catch (e: Exception) {
                                     val errorMsg = "Failed to request permissions: ${e.message}"
                                     Log.e("ProfileScreen", errorMsg, e)
