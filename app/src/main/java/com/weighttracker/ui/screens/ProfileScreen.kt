@@ -49,6 +49,8 @@ fun ProfileScreen(viewModel: WeightViewModel) {
     var showEditDialog by remember { mutableStateOf(false) }
     var dailySteps by remember { mutableStateOf(0L) }
     var healthConnectAvailable by remember { mutableStateOf(false) }
+    var isLoadingSteps by remember { mutableStateOf(false) }
+    var healthConnectError by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
